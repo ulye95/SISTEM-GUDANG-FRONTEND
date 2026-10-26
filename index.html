@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SISTEM GUDANG</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f5f7;
+      color: #222;
+    }
+
+    header {
+      background: #d71920;
+      color: white;
+      padding: 22px 16px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    main {
+      max-width: 600px;
+      margin: auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px #0000000c;
+    }
+
+    h2 { font-size: 18px; margin-top: 0; }
+
+    label {
+      display: block;
+      margin: 14px 0 7px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      min-height: 46px;
+      border-radius: 9px;
+      font-size: 15px;
+    }
+
+    input, select {
+      border: 1px solid #ccc;
+      background: white;
+    }
+
+    button {
+      border: none;
+      background: #d71920;
+      color: white;
+      font-weight: bold;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .6; }
+
+    #kategoriContainer { display: none; }
+
+    #reader {
+      width: 100%;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+
+    #pesan {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-wrap: anywhere;
+      font-size: 14px;
+      display: none;
+    }
+
+    .info { background: #fff3cd; color: #664d03; }
+    .sukses { background: #d1e7dd; color: #0f5132; }
+    .error { background: #f8d7da; color: #842029; }
+
+    .catatan {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #666;
+    }
+  </style>
+</head>
+
+<body>
+  <header>SISTEM GUDANG</header>
+
+  <main>
+    <section class="card">
+      <h2>Transaksi Barang</h2>
+
+      <label for="companyCode">Kode Perusahaan</label>
+      <input id="companyCode" placeholder="Kode perusahaan">
+
+      <label for="userId">ID Pengguna</label>
+      <input id="userId" placeholder="ID pengguna">
+
+      <label for="jenisTransaksi">Jenis Transaksi</label>
+      <select id="jenisTransaksi" onchange="toggleKategori()">
+        <option value="MASUK">Barang Masuk</option>
+        <option value="KELUAR">Barang Keluar</option>
+      </select>
+
+      <div id="kategoriContainer">
+        <label for="kategori">Kategori Barang Keluar</label>
+        <select id="kategori">
+          <option value="MARKETPLACE">Marketplace</option>
+          <option value="OFFLINE">Offline</option>
+          <option value="DAMAGED">Barang Rusak</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Scan QR Barang</h2>
+      <div id="reader"></div>
+
+      <button id="btnScan" onclick="mulaiScan()">
+        📷 MULAI SCAN
+      </button>
+
+      <button id="btnStop" onclick="berhentiScan()"
+              style="display:none;background:#555">
+        Tutup Kamera
+      </button>
+
+      <div id="pesan" role="status" aria-live="polite"></div>
+
+      <p class="catatan">
+        Satu QR mewakili satu unit barang. Pastikan jenis transaksi
+        benar sebelum memindai.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    let scanner = null;
+    let kameraAktif = false;
+    let memproses = false;
+    let qrTerakhir = "";
+    let waktuTerakhir = 0;
+
+    function toggleKategori() {
+      const keluar =
+        document.getElementById("jenisTransaksi").value === "KELUAR";
+
+      document.getElementById("kategoriContainer").style.display =
+        keluar ? "block" : "none";
+
+      if (!keluar) {
+        document.getElementById("kategori").value = "";
+      } else if (!document.getElementById("kategori").value) {
+        document.getElementById("kategori").value = "MARKETPLACE";
+      }
+    }
+
+    function pesan(teks, jenis = "info") {
+      const el = document.getElementById("pesan");
+      el.textContent = teks;
+      el.className = jenis;
+      el.style.display = "block";
+    }
+
+    async function mulaiScan() {
+      if (kameraAktif) return;
+
+      if (typeof Html5Qrcode === "undefined") {
+        pesan("Scanner gagal dimuat. Periksa koneksi internet.", "error");
+        return;
+      }
+
+      try {
+        document.getElementById("btnScan").disabled = true;
+        scanner = new Html5Qrcode("reader");
+
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          hasilScan,
+          () => {}
+        );
+
+        kameraAktif = true;
+        document.getElementById("btnStop").style.display = "block";
+        pesan("Kamera aktif. Arahkan QR barang ke kotak pemindaian.");
+      } catch (err) {
+        scanner = null;
+        pesan("Kamera gagal dibuka. Periksa izin kamera dan pastikan halaman HTTPS.", "error");
+      } finally {
+        document.getElementById("btnScan").disabled = false;
+      }
+    }
+
+    function hasilScan(qrText) {
+      const sekarang = Date.now();
+
+      if (memproses) return;
+      if (qrText === qrTerakhir && sekarang - waktuTerakhir < 2500) return;
+
+      qrTerakhir = qrText;
+      waktuTerakhir = sekarang;
+      memproses = true;
+
+      const jenis = document.getElementById("jenisTransaksi").value;
+      const kategori = jenis === "KELUAR"
+        ? document.getElementById("kategori").value
+        : "";
+
+      pesan("QR terbaca: " + qrText +
+        ". Backend transaksi belum dihubungkan.", "info");
+
+      // Langkah berikutnya: kirim QR ke backend Apps Script
+      // setelah validasi autentikasi dan hak akses tersedia.
+
+      memproses = false;
+    }
+
+    async function berhentiScan() {
+      if (!scanner || !kameraAktif) return;
+
+      try {
+        await scanner.stop();
+        await scanner.clear();
+      } catch (err) {
+        console.error(err);
+      }
+
+      scanner = null;
+      kameraAktif = false;
+      document.getElementById("btnStop").style.display = "none";
+      pesan("Kamera ditutup.");
+    }
+
+    document.addEventListener("DOMContentLoaded", toggleKategori);
+  </script>
+</body>
+</html>
