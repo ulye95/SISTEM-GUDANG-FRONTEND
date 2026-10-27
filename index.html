@@ -27,6 +27,18 @@
     .topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .topline button { width: auto; min-height: 38px; padding: 8px 12px; margin: 0; background: #555; }
     #identitas { font-size: 13px; color: #555; line-height: 1.5; }
+    #dashboardView { display:none; }
+    .stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .stat { background:#fff; border:1px solid #eee; border-radius:10px; padding:12px; min-width:0; }
+    .stat .label { color:#666; font-size:12px; margin-bottom:7px; }
+    .stat .value { font-size:18px; font-weight:bold; overflow-wrap:anywhere; }
+    .filters { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .tableWrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th,td { text-align:left; padding:9px 7px; border-bottom:1px solid #eee; white-space:nowrap; }
+    th { background:#f8f8f8; }
+    .secondary { background:#555; }
+    @media (max-width:420px) { .stats {grid-template-columns:1fr 1fr;} .stat .value {font-size:16px;} .filters {grid-template-columns:1fr;} }
   </style>
 </head>
 <body>
@@ -49,6 +61,27 @@
       <section class="card">
         <div class="topline"><h2 style="margin:0">Akses Pengguna</h2><button id="btnLogout" type="button">Keluar</button></div>
         <p id="identitas"></p>
+      </section>
+
+      <section class="card" id="dashboardView">
+        <div class="topline"><h2 style="margin:0">Dashboard</h2><button id="btnRefreshDashboard" type="button" class="secondary">↻ Refresh</button></div>
+        <p id="dashboardCompany" class="catatan"></p>
+        <div class="filters">
+          <div><label for="filterMonth">Bulan transaksi</label><input id="filterMonth" type="month"></div>
+          <div><label for="filterProduct">Produk</label><select id="filterProduct"><option value="ALL">Semua Produk</option></select></div>
+        </div>
+        <div class="stats" style="margin-top:14px">
+          <div class="stat"><div class="label">Total Produk</div><div class="value" id="totalProduk">-</div></div>
+          <div class="stat"><div class="label">Stok Tersedia</div><div class="value" id="totalStok">-</div></div>
+          <div class="stat"><div class="label">Nilai Stok (HPP)</div><div class="value" id="nilaiStokHPP">-</div></div>
+          <div class="stat"><div class="label">Barang Masuk</div><div class="value" id="barangMasuk">-</div></div>
+          <div class="stat"><div class="label">Barang Keluar</div><div class="value" id="barangKeluar">-</div></div>
+          <div class="stat"><div class="label">Total Penjualan</div><div class="value" id="totalPenjualan">-</div></div>
+          <div class="stat"><div class="label">Laba Kotor</div><div class="value" id="labaKotor">-</div></div>
+        </div>
+        <h2 style="margin-top:20px">Transaksi Terbaru</h2>
+        <div id="dashboardMessage" class="catatan">Memuat data...</div>
+        <div class="tableWrap"><table><thead><tr><th>Waktu</th><th>Barang</th><th>Jenis</th><th>Channel</th><th>Penjualan</th><th>Laba</th></tr></thead><tbody id="recentRows"></tbody></table></div>
       </section>
 
       <section class="card" id="scanView">
@@ -75,10 +108,6 @@
         <p class="catatan">Satu QR mewakili satu unit barang. Transaksi dikirim langsung setelah QR terbaca. Pastikan jenis transaksi benar sebelum memindai.</p>
       </section>
 
-      <section class="card" id="dashboardNotice" style="display:none">
-        <h2>Dashboard</h2>
-        <p class="catatan">Endpoint data Dashboard belum tersedia pada backend yang sedang digunakan. Bagian ini akan dihubungkan setelah fungsi data Dashboard disiapkan.</p>
-      </section>
     </section>
   </main>
 
@@ -166,11 +195,14 @@
       document.getElementById('loginView').style.display = 'none';
       document.getElementById('appView').style.display = 'block';
       document.getElementById('identitas').textContent = (user.fullName || user.userId || 'Pengguna') + ' · ' + role;
-      const bolehScan = ['Admin', 'Gudang'].includes(role) && Array.isArray(user.permissions) && user.permissions.includes('SCAN');
+      const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+      const bolehScan = ['Admin', 'Gudang'].includes(role) && permissions.includes('SCAN');
+      const bolehDashboard = ['Admin', 'Viewer'].includes(role) && permissions.includes('DASHBOARD');
       document.getElementById('scanView').style.display = bolehScan ? 'block' : 'none';
       document.getElementById('scannerCard').style.display = bolehScan ? 'block' : 'none';
-      document.getElementById('dashboardNotice').style.display = role === 'Viewer' ? 'block' : 'none';
-      if (!bolehScan) tampilPesan('pesan', 'Akun Viewer hanya memiliki akses Dashboard. Fitur transaksi dinonaktifkan.', 'info');
+      document.getElementById('dashboardView').style.display = bolehDashboard ? 'block' : 'none';
+      if (bolehDashboard) muatDashboard();
+      if (!bolehScan) sembunyikanPesan('pesan');
       toggleKategori();
     }
 
@@ -179,6 +211,63 @@
       document.getElementById('appView').style.display = 'none';
       document.getElementById('email').value = '';
       document.getElementById('password').value = '';
+    }
+
+    const rupiah = value => new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR', maximumFractionDigits:0}).format(Number(value) || 0);
+    const angka = value => new Intl.NumberFormat('id-ID').format(Number(value) || 0);
+
+    document.getElementById('btnRefreshDashboard').addEventListener('click', muatDashboard);
+    document.getElementById('filterMonth').addEventListener('change', muatDashboard);
+    document.getElementById('filterProduct').addEventListener('change', muatDashboard);
+
+    async function muatDashboard() {
+      if (!sessionData || !sessionData.token) return;
+      const message = document.getElementById('dashboardMessage');
+      message.textContent = 'Memuat data Dashboard...';
+      try {
+        const result = await kirimKeBackend({
+          action:'dashboard', token:sessionData.token,
+          month:document.getElementById('filterMonth').value || 'ALL',
+          productCode:document.getElementById('filterProduct').value || 'ALL'
+        });
+        if (!result || !result.success) {
+          if (result && result.code === 'SESSION_INVALID') {
+            sessionData = null; sessionStorage.removeItem(SESSION_KEY); tampilLogin();
+          }
+          throw new Error((result && result.message) || 'Data Dashboard tidak dapat dimuat.');
+        }
+        document.getElementById('dashboardCompany').textContent = result.companyName || '';
+        const productSelect = document.getElementById('filterProduct');
+        const oldValue = productSelect.value || 'ALL';
+        const known = new Set(Array.from(productSelect.options).map(o => o.value));
+        (result.products || []).forEach(product => {
+          if (!known.has(product.productCode)) {
+            const option = document.createElement('option'); option.value = product.productCode;
+            option.textContent = product.productCode + ' — ' + product.productName; productSelect.appendChild(option);
+          }
+        });
+        if (Array.from(productSelect.options).some(o => o.value === oldValue)) productSelect.value = oldValue;
+        const stats = result.stats || {};
+        document.getElementById('totalProduk').textContent = angka(stats.totalProduk);
+        document.getElementById('totalStok').textContent = angka(stats.totalStok);
+        document.getElementById('nilaiStokHPP').textContent = rupiah(stats.nilaiStokHPP);
+        document.getElementById('barangMasuk').textContent = angka(stats.barangMasuk);
+        document.getElementById('barangKeluar').textContent = angka(stats.barangKeluar);
+        document.getElementById('totalPenjualan').textContent = rupiah(stats.totalPenjualan);
+        document.getElementById('labaKotor').textContent = rupiah(stats.labaKotor);
+        const tbody = document.getElementById('recentRows'); tbody.replaceChildren();
+        (result.recentTransactions || []).forEach(tx => {
+          const tr = document.createElement('tr');
+          const date = tx.timestamp ? new Date(tx.timestamp) : null;
+          const values = [date && !isNaN(date.getTime()) ? date.toLocaleString('id-ID') : '-',
+            (tx.productCode || '-') + ' / ' + (tx.serialNumber || '-'), tx.transactionType || '-', tx.channel || '-', rupiah(tx.salesValue), rupiah(tx.grossProfit)];
+          values.forEach(value => { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); });
+          tbody.appendChild(tr);
+        });
+        message.textContent = 'Dashboard diperbarui.';
+      } catch (err) {
+        message.textContent = 'Gagal memuat Dashboard: ' + pesanErrorJaringan(err);
+      }
     }
 
     document.getElementById('btnLogout').addEventListener('click', async function () {
