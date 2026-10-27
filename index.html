@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SISTEM GUDANG</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, sans-serif; background: #f4f5f7; color: #222; }
@@ -50,6 +51,21 @@
     th,td { text-align:left; padding:9px 7px; border-bottom:1px solid #eee; white-space:nowrap; }
     th { background:#f8f8f8; }
     .secondary { background:#555; }
+    .formGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .productActions { display:flex; gap:8px; align-items:center; }
+    .productActions button { margin:0; min-width:110px; }
+    .qrGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+    .qrItem { border:1px solid #ddd; border-radius:10px; padding:12px; text-align:center; break-inside:avoid; }
+    .qrCanvas { display:flex; justify-content:center; margin:8px auto; min-height:130px; }
+    .qrText { font-size:12px; overflow-wrap:anywhere; }
+    .smallBtn { padding:8px 10px; min-height:36px; font-size:13px; }
+    @media print {
+      body * { visibility:hidden !important; }
+      #qrPrintArea, #qrPrintArea * { visibility:visible !important; }
+      #qrPrintArea { position:absolute; left:0; top:0; width:100%; }
+      #qrPrintArea .qrGrid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      #qrPrintArea .qrItem { border:1px solid #999; }
+    }
     @media (max-width:420px) { .stats {grid-template-columns:1fr 1fr;} .stat .value {font-size:16px;} .filters {grid-template-columns:1fr;} }
   </style>
 </head>
@@ -87,6 +103,10 @@
             <span class="menuIcon">📦</span><span class="menuTitle">Transaksi</span>
             <span class="menuDesc">Catat barang masuk dan barang keluar melalui QR</span>
           </button>
+          <button id="btnOpenProducts" type="button" class="menuChoice">
+            <span class="menuIcon">🏷️</span><span class="menuTitle">Manajemen Barang</span>
+            <span class="menuDesc">Tambah produk, lihat daftar barang, dan buat QR unit</span>
+          </button>
         </div>
       </section>
 
@@ -114,6 +134,42 @@
         <h2 style="margin-top:22px">Riwayat Transaksi Terbaru</h2>
         <div id="dashboardMessage" class="catatan">Memuat data...</div>
         <div class="tableWrap"><table><thead><tr><th>Waktu</th><th>Barang</th><th>Jenis</th><th>Channel</th><th>Penjualan</th><th>Laba</th></tr></thead><tbody id="recentRows"></tbody></table></div>
+      </section>
+
+      <section class="card" id="productsPage" style="display:none">
+        <div class="pageTitle"><h2>Manajemen Barang</h2><button id="btnBackProducts" type="button">← Menu</button></div>
+        <p id="productsCompany" class="catatan"></p>
+        <h2 style="margin-top:20px">Tambah Produk</h2>
+        <form id="productForm">
+          <div class="formGrid">
+            <div><label for="productCode">Kode Barang</label><input id="productCode" maxlength="40" pattern="[A-Za-z0-9_-]+" placeholder="Contoh: BRG001" required></div>
+            <div><label for="productUnit">Satuan</label><input id="productUnit" maxlength="20" placeholder="Contoh: PCS" value="PCS" required></div>
+          </div>
+          <label for="productName">Nama Barang</label><input id="productName" maxlength="150" placeholder="Nama produk" required>
+          <div class="formGrid">
+            <div><label for="productHpp">HPP (Rp)</label><input id="productHpp" type="number" min="0" step="1" placeholder="0" required></div>
+            <div><label for="productPrice">Harga Jual (Rp)</label><input id="productPrice" type="number" min="0" step="1" placeholder="0" required></div>
+          </div>
+          <button id="btnSaveProduct" type="submit">SIMPAN PRODUK</button>
+        </form>
+        <div id="productMessage" class="catatan" role="status" aria-live="polite" style="margin-top:10px"></div>
+
+        <h2 style="margin-top:24px">Buat QR untuk Unit Barang</h2>
+        <p class="catatan">Setiap QR mewakili satu unit fisik. Pembuatan QR tidak menambah stok; stok bertambah setelah QR dipindai pada transaksi Barang Masuk. Maksimal 200 QR per proses.</p>
+        <form id="qrForm">
+          <label for="qrProduct">Pilih Produk</label><select id="qrProduct" required><option value="">Pilih produk...</option></select>
+          <label for="qrQuantity">Jumlah QR</label><input id="qrQuantity" type="number" min="1" max="200" step="1" value="1" required>
+          <button id="btnGenerateQr" type="submit">BUAT QR CODE</button>
+        </form>
+        <div id="qrMessage" class="catatan" role="status" aria-live="polite" style="margin-top:10px"></div>
+        <div id="qrPrintArea">
+          <div class="topline" style="margin-top:12px"><strong id="qrBatchTitle"></strong><button id="btnPrintQr" type="button" class="secondary smallBtn" style="display:none">Cetak QR</button></div>
+          <div id="qrResults" class="qrGrid"></div>
+        </div>
+
+        <h2 style="margin-top:24px">Daftar Produk</h2>
+        <div class="topline" style="margin:10px 0"><span id="productListMessage" class="catatan">Memuat daftar produk...</span><button id="btnRefreshProducts" type="button" class="secondary smallBtn">↻ Refresh</button></div>
+        <div class="tableWrap"><table><thead><tr><th>Kode</th><th>Nama Barang</th><th>HPP</th><th>Harga Jual</th><th>Satuan</th><th>QR Belum Masuk</th><th>Stok</th><th>Terjual</th></tr></thead><tbody id="productRows"></tbody></table></div>
       </section>
 
       <section id="scanPage">
@@ -222,7 +278,7 @@
       return message;
     }
 
-    let akses = { monitoring: false, transaksi: false };
+    let akses = { monitoring: false, transaksi: false, produk: false };
 
     function bukaAplikasi() {
       if (!sessionData || !sessionData.user) return tampilLogin();
@@ -234,15 +290,18 @@
       const permissions = Array.isArray(user.permissions) ? user.permissions : [];
       akses = {
         monitoring: ['Admin', 'Viewer'].includes(role) && permissions.includes('DASHBOARD'),
-        transaksi: ['Admin', 'Gudang'].includes(role) && permissions.includes('SCAN')
+        transaksi: ['Admin', 'Gudang'].includes(role) && permissions.includes('SCAN'),
+        produk: role === 'Admin'
       };
       document.getElementById('homeMenu').style.display = 'block';
       document.getElementById('btnOpenMonitoring').style.display = akses.monitoring ? 'flex' : 'none';
       document.getElementById('btnOpenTransaksi').style.display = akses.transaksi ? 'flex' : 'none';
-      document.querySelector('.menuGrid').style.gridTemplateColumns =
-        akses.monitoring && akses.transaksi ? '1fr 1fr' : '1fr';
+      document.getElementById('btnOpenProducts').style.display = akses.produk ? 'flex' : 'none';
+      const visibleMenus = [akses.monitoring, akses.transaksi, akses.produk].filter(Boolean).length;
+      document.querySelector('.menuGrid').style.gridTemplateColumns = visibleMenus > 1 ? '1fr 1fr' : '1fr';
       document.getElementById('dashboardView').style.display = 'none';
       document.getElementById('scanPage').style.display = 'none';
+      document.getElementById('productsPage').style.display = 'none';
       if (!akses.transaksi) {
         berhentiScan();
         sembunyikanPesan('pesan');
@@ -253,24 +312,30 @@
     function bukaHalaman(halaman) {
       if (halaman === 'monitoring' && !akses.monitoring) return;
       if (halaman === 'transaksi' && !akses.transaksi) return;
+      if (halaman === 'produk' && !akses.produk) return;
       document.getElementById('homeMenu').style.display = 'none';
       document.getElementById('dashboardView').style.display = halaman === 'monitoring' ? 'block' : 'none';
       document.getElementById('scanPage').style.display = halaman === 'transaksi' ? 'block' : 'none';
+      document.getElementById('productsPage').style.display = halaman === 'produk' ? 'block' : 'none';
       if (halaman === 'monitoring') muatDashboard();
       if (halaman === 'transaksi') toggleKategori();
+      if (halaman === 'produk') muatProduk();
     }
 
     async function kembaliKeMenu() {
       await berhentiScan();
       document.getElementById('dashboardView').style.display = 'none';
       document.getElementById('scanPage').style.display = 'none';
+      document.getElementById('productsPage').style.display = 'none';
       document.getElementById('homeMenu').style.display = 'block';
     }
 
     document.getElementById('btnOpenMonitoring').addEventListener('click', () => bukaHalaman('monitoring'));
     document.getElementById('btnOpenTransaksi').addEventListener('click', () => bukaHalaman('transaksi'));
+    document.getElementById('btnOpenProducts').addEventListener('click', () => bukaHalaman('produk'));
     document.getElementById('btnBackMonitoring').addEventListener('click', kembaliKeMenu);
     document.getElementById('btnBackTransaksi').addEventListener('click', kembaliKeMenu);
+    document.getElementById('btnBackProducts').addEventListener('click', kembaliKeMenu);
 
     function tampilLogin() {
       document.getElementById('loginView').style.display = 'block';
@@ -363,6 +428,121 @@
         message.textContent = 'Gagal memuat Monitoring Gudang: ' + pesanErrorJaringan(err);
       }
     }
+
+    async function muatProduk() {
+      if (!sessionData || !sessionData.token || !akses.produk) return;
+      const listMessage = document.getElementById('productListMessage');
+      listMessage.textContent = 'Memuat daftar produk...';
+      try {
+        const result = await kirimKeBackend({ action:'product_list', token:sessionData.token });
+        if (!result || !result.success) {
+          if (result && result.code === 'SESSION_INVALID') {
+            sessionData = null; sessionStorage.removeItem(SESSION_KEY); tampilLogin();
+          }
+          throw new Error((result && result.message) || 'Daftar produk gagal dimuat.');
+        }
+        document.getElementById('productsCompany').textContent = result.companyName || '';
+        const rows = document.getElementById('productRows');
+        rows.replaceChildren();
+        const select = document.getElementById('qrProduct');
+        const selected = select.value;
+        select.replaceChildren();
+        const first = document.createElement('option');
+        first.value = ''; first.textContent = 'Pilih produk...'; select.appendChild(first);
+        (result.products || []).forEach(product => {
+          const option = document.createElement('option');
+          option.value = product.productCode;
+          option.textContent = product.productCode + ' — ' + product.productName;
+          select.appendChild(option);
+          const tr = document.createElement('tr');
+          [
+            product.productCode, product.productName, rupiah(product.hpp),
+            rupiah(product.sellingPrice), product.unit || '-',
+            angka(product.qrGenerated), angka(product.stockAvailable), angka(product.sold)
+          ].forEach(value => {
+            const td = document.createElement('td'); td.textContent = value == null ? '-' : value; tr.appendChild(td);
+          });
+          rows.appendChild(tr);
+        });
+        if ([...select.options].some(o => o.value === selected)) select.value = selected;
+        listMessage.textContent = 'Jumlah produk: ' + angka((result.products || []).length) + '.';
+      } catch (err) {
+        listMessage.textContent = 'Gagal memuat produk: ' + pesanErrorJaringan(err);
+      }
+    }
+
+    document.getElementById('productForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      if (!akses.produk || !sessionData || !sessionData.token) return;
+      const btn = document.getElementById('btnSaveProduct');
+      btn.disabled = true; btn.textContent = 'MENYIMPAN...';
+      const message = document.getElementById('productMessage');
+      message.textContent = '';
+      try {
+        const result = await kirimKeBackend({
+          action:'product_add', token:sessionData.token,
+          productCode:document.getElementById('productCode').value.trim(),
+          productName:document.getElementById('productName').value.trim(),
+          unit:document.getElementById('productUnit').value.trim(),
+          hpp:document.getElementById('productHpp').value,
+          sellingPrice:document.getElementById('productPrice').value
+        });
+        if (!result || !result.success) throw new Error((result && result.message) || 'Produk gagal disimpan.');
+        message.textContent = result.message || 'Produk berhasil disimpan.';
+        message.className = 'catatan sukses';
+        document.getElementById('productForm').reset();
+        document.getElementById('productUnit').value = 'PCS';
+        await muatProduk();
+      } catch(err) {
+        message.textContent = 'Gagal menyimpan produk: ' + pesanErrorJaringan(err);
+        message.className = 'catatan error';
+      } finally {
+        btn.disabled = false; btn.textContent = 'SIMPAN PRODUK';
+      }
+    });
+
+    document.getElementById('qrForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      if (!akses.produk || !sessionData || !sessionData.token) return;
+      const btn = document.getElementById('btnGenerateQr');
+      btn.disabled = true; btn.textContent = 'MEMBUAT QR...';
+      document.getElementById('qrResults').replaceChildren();
+      document.getElementById('btnPrintQr').style.display = 'none';
+      const message = document.getElementById('qrMessage');
+      message.textContent = '';
+      try {
+        const quantity = Number(document.getElementById('qrQuantity').value);
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 200) throw new Error('Jumlah QR harus 1 sampai 200.');
+        if (typeof QRCode === 'undefined') throw new Error('Pustaka QR belum berhasil dimuat. Muat ulang halaman dan coba lagi.');
+        const result = await kirimKeBackend({
+          action:'qr_generate', token:sessionData.token,
+          productCode:document.getElementById('qrProduct').value,
+          quantity:quantity
+        });
+        if (!result || !result.success) throw new Error((result && result.message) || 'QR gagal dibuat.');
+        document.getElementById('qrBatchTitle').textContent = result.productCode + ' — ' + result.productName + ' (' + angka(result.quantity) + ' QR)';
+        (result.qrPayloads || []).forEach((payload, index) => {
+          const item = document.createElement('div'); item.className = 'qrItem';
+          const title = document.createElement('strong'); title.textContent = result.productCode + ' #' + (index + 1); item.appendChild(title);
+          const qr = document.createElement('div'); qr.className = 'qrCanvas'; item.appendChild(qr);
+          new QRCode(qr, { text:payload, width:128, height:128, correctLevel:QRCode.CorrectLevel.M });
+          const serial = document.createElement('div'); serial.className = 'qrText'; serial.textContent = payload; item.appendChild(serial);
+          document.getElementById('qrResults').appendChild(item);
+        });
+        message.textContent = result.message || 'QR berhasil dibuat.';
+        message.className = 'catatan sukses';
+        document.getElementById('btnPrintQr').style.display = (result.qrPayloads || []).length ? 'block' : 'none';
+        await muatProduk();
+      } catch(err) {
+        message.textContent = 'Gagal membuat QR: ' + pesanErrorJaringan(err);
+        message.className = 'catatan error';
+      } finally {
+        btn.disabled = false; btn.textContent = 'BUAT QR CODE';
+      }
+    });
+
+    document.getElementById('btnRefreshProducts').addEventListener('click', muatProduk);
+    document.getElementById('btnPrintQr').addEventListener('click', () => window.print());
 
     document.getElementById('btnLogout').addEventListener('click', async function () {
       await berhentiScan();
