@@ -4,254 +4,315 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SISTEM GUDANG</title>
-
   <script src="https://unpkg.com/html5-qrcode"></script>
-
   <style>
     * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f5f7;
-      color: #222;
-    }
-
-    header {
-      background: #d71920;
-      color: white;
-      padding: 22px 16px;
-      text-align: center;
-      font-size: 22px;
-      font-weight: bold;
-    }
-
-    main {
-      max-width: 600px;
-      margin: auto;
-      padding: 16px;
-    }
-
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 18px;
-      margin-bottom: 16px;
-      box-shadow: 0 2px 10px #0000000c;
-    }
-
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f5f7; color: #222; }
+    header { background: #d71920; color: white; padding: 22px 16px; text-align: center; font-size: 22px; font-weight: bold; }
+    main { max-width: 600px; margin: auto; padding: 16px; }
+    .card { background: white; border-radius: 14px; padding: 18px; margin-bottom: 16px; box-shadow: 0 2px 10px #0000000c; }
     h2 { font-size: 18px; margin-top: 0; }
-
-    label {
-      display: block;
-      margin: 14px 0 7px;
-      font-weight: bold;
-      font-size: 14px;
-    }
-
-    input, select, button {
-      width: 100%;
-      padding: 12px;
-      min-height: 46px;
-      border-radius: 9px;
-      font-size: 15px;
-    }
-
-    input, select {
-      border: 1px solid #ccc;
-      background: white;
-    }
-
-    button {
-      border: none;
-      background: #d71920;
-      color: white;
-      font-weight: bold;
-      margin-top: 12px;
-      cursor: pointer;
-    }
-
-    button:disabled { opacity: .6; }
-
-    #kategoriContainer { display: none; }
-
-    #reader {
-      width: 100%;
-      overflow: hidden;
-      border-radius: 10px;
-    }
-
-    #pesan {
-      margin-top: 14px;
-      padding: 12px;
-      border-radius: 8px;
-      overflow-wrap: anywhere;
-      font-size: 14px;
-      display: none;
-    }
-
+    label { display: block; margin: 14px 0 7px; font-weight: bold; font-size: 14px; }
+    input, select, button { width: 100%; padding: 12px; min-height: 46px; border-radius: 9px; font-size: 15px; }
+    input, select { border: 1px solid #ccc; background: white; }
+    button { border: none; background: #d71920; color: white; font-weight: bold; margin-top: 12px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #kategoriContainer, #appView { display: none; }
+    #reader { width: 100%; overflow: hidden; border-radius: 10px; }
+    #pesan { margin-top: 14px; padding: 12px; border-radius: 8px; overflow-wrap: anywhere; font-size: 14px; display: none; }
     .info { background: #fff3cd; color: #664d03; }
     .sukses { background: #d1e7dd; color: #0f5132; }
     .error { background: #f8d7da; color: #842029; }
-
-    .catatan {
-      font-size: 13px;
-      line-height: 1.5;
-      color: #666;
-    }
+    .catatan { font-size: 13px; line-height: 1.5; color: #666; }
+    .topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .topline button { width: auto; min-height: 38px; padding: 8px 12px; margin: 0; background: #555; }
+    #identitas { font-size: 13px; color: #555; line-height: 1.5; }
   </style>
 </head>
-
 <body>
   <header>SISTEM GUDANG</header>
-
   <main>
-    <section class="card">
-      <h2>Transaksi Barang</h2>
-
-      <label for="companyCode">Kode Perusahaan</label>
-      <input id="companyCode" placeholder="Kode perusahaan">
-
-      <label for="userId">ID Pengguna</label>
-      <input id="userId" placeholder="ID pengguna">
-
-      <label for="jenisTransaksi">Jenis Transaksi</label>
-      <select id="jenisTransaksi" onchange="toggleKategori()">
-        <option value="MASUK">Barang Masuk</option>
-        <option value="KELUAR">Barang Keluar</option>
-      </select>
-
-      <div id="kategoriContainer">
-        <label for="kategori">Kategori Barang Keluar</label>
-        <select id="kategori">
-          <option value="MARKETPLACE">Marketplace</option>
-          <option value="OFFLINE">Offline</option>
-          <option value="DAMAGED">Barang Rusak</option>
-        </select>
-      </div>
+    <section class="card" id="loginView">
+      <h2>Login Pengguna</h2>
+      <form id="loginForm">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" placeholder="Email akun" required>
+        <label for="password">Kata Sandi</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="Kata sandi" required>
+        <button id="btnLogin" type="submit">MASUK</button>
+      </form>
+      <div id="pesanLogin" role="status" aria-live="polite" style="display:none;margin-top:14px;padding:12px;border-radius:8px;overflow-wrap:anywhere;font-size:14px"></div>
+      <p class="catatan">Gunakan email dan kata sandi yang terdaftar pada sistem. Jangan bagikan token sesi kepada orang lain.</p>
     </section>
 
-    <section class="card">
-      <h2>Scan QR Barang</h2>
-      <div id="reader"></div>
+    <section id="appView">
+      <section class="card">
+        <div class="topline"><h2 style="margin:0">Akses Pengguna</h2><button id="btnLogout" type="button">Keluar</button></div>
+        <p id="identitas"></p>
+      </section>
 
-      <button id="btnScan" onclick="mulaiScan()">
-        📷 MULAI SCAN
-      </button>
+      <section class="card" id="scanView">
+        <h2>Transaksi Barang</h2>
+        <label for="jenisTransaksi">Jenis Transaksi</label>
+        <select id="jenisTransaksi">
+          <option value="MASUK">Barang Masuk</option>
+          <option value="KELUAR">Barang Keluar</option>
+        </select>
+        <div id="kategoriContainer">
+          <label for="kategori">Channel Barang Keluar</label>
+          <select id="kategori">
+            <option value="MARKETPLACE">Marketplace</option>
+            <option value="OFFLINE">Offline</option>
+          </select>
+        </div>
+      </section>
 
-      <button id="btnStop" onclick="berhentiScan()"
-              style="display:none;background:#555">
-        Tutup Kamera
-      </button>
+      <section class="card" id="scannerCard">
+        <h2>Scan QR Barang</h2>
+        <div id="reader"></div>
+        <button id="btnScan" type="button">📷 MULAI SCAN</button>
+        <div id="pesan" role="status" aria-live="polite"></div>
+        <p class="catatan">Satu QR mewakili satu unit barang. Transaksi dikirim langsung setelah QR terbaca. Pastikan jenis transaksi benar sebelum memindai.</p>
+      </section>
 
-      <div id="pesan" role="status" aria-live="polite"></div>
-
-      <p class="catatan">
-        Satu QR mewakili satu unit barang. Pastikan jenis transaksi
-        benar sebelum memindai.
-      </p>
+      <section class="card" id="dashboardNotice" style="display:none">
+        <h2>Dashboard</h2>
+        <p class="catatan">Endpoint data Dashboard belum tersedia pada backend yang sedang digunakan. Bagian ini akan dihubungkan setelah fungsi data Dashboard disiapkan.</p>
+      </section>
     </section>
   </main>
 
   <script>
+    // Endpoint Web App Apps Script yang saat ini digunakan.
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzZ0BiUaEWfCEGBXPniod_rLQCT0PYV-1d4qAYMg-sBeDHsR1aar6okZMN-kqtEve1e/exec';
+    const SESSION_KEY = 'sistemGudangSessionV1';
+
     let scanner = null;
     let kameraAktif = false;
     let memproses = false;
-    let qrTerakhir = "";
+    let qrTerakhir = '';
     let waktuTerakhir = 0;
+    let audioContext = null;
+    let sessionData = null;
 
-    function toggleKategori() {
-      const keluar =
-        document.getElementById("jenisTransaksi").value === "KELUAR";
-
-      document.getElementById("kategoriContainer").style.display =
-        keluar ? "block" : "none";
-
-      if (!keluar) {
-        document.getElementById("kategori").value = "";
-      } else if (!document.getElementById("kategori").value) {
-        document.getElementById("kategori").value = "MARKETPLACE";
-      }
-    }
-
-    function pesan(teks, jenis = "info") {
-      const el = document.getElementById("pesan");
+    function tampilPesan(id, teks, jenis = 'info') {
+      const el = document.getElementById(id);
       el.textContent = teks;
       el.className = jenis;
-      el.style.display = "block";
+      el.style.display = 'block';
     }
+
+    function sembunyikanPesan(id) {
+      const el = document.getElementById(id);
+      el.style.display = 'none';
+      el.textContent = '';
+    }
+
+    // text/plain menghindari preflight JSON pada sebagian konfigurasi browser.
+    // Jika respons tetap diblokir CORS oleh Apps Script, diperlukan bridge same-origin/proxy.
+    async function kirimKeBackend(data) {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(data),
+        redirect: 'follow'
+      });
+      if (!response.ok) throw new Error('Server mengembalikan HTTP ' + response.status + '.');
+      const text = await response.text();
+      try { return JSON.parse(text); }
+      catch (_) { throw new Error('Respons backend bukan JSON yang valid. Periksa URL/deployment Apps Script.'); }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (document.getElementById('btnLogin').disabled) return;
+      sembunyikanPesan('pesanLogin');
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      btn.textContent = 'MEMERIKSA...';
+      try {
+        const result = await kirimKeBackend({
+          action: 'login',
+          email: document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value
+        });
+        if (!result || !result.success || !result.token || !result.user) {
+          throw new Error((result && result.message) || 'Login gagal. Periksa email dan kata sandi.');
+        }
+        sessionData = { token: result.token, user: result.user, expiresIn: result.expiresIn || 21600, savedAt: Date.now() };
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+        document.getElementById('password').value = '';
+        bukaAplikasi();
+      } catch (err) {
+        tampilPesan('pesanLogin', pesanErrorJaringan(err), 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'MASUK';
+      }
+    });
+
+    function pesanErrorJaringan(err) {
+      const message = String(err && err.message || err || 'Terjadi kesalahan.');
+      if (/Failed to fetch|NetworkError|CORS|fetch/i.test(message)) {
+        return 'Tidak dapat membaca respons Apps Script dari browser. Ini mungkin masalah CORS/redirect pada koneksi GitHub Pages ke Apps Script. Jangan ulangi transaksi berulang kali; kita perlu menyiapkan jalur koneksi yang kompatibel terlebih dahulu.';
+      }
+      return message;
+    }
+
+    function bukaAplikasi() {
+      if (!sessionData || !sessionData.user) return tampilLogin();
+      const user = sessionData.user;
+      const role = String(user.role || '');
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('appView').style.display = 'block';
+      document.getElementById('identitas').textContent = (user.fullName || user.userId || 'Pengguna') + ' · ' + role;
+      const bolehScan = ['Admin', 'Gudang'].includes(role) && Array.isArray(user.permissions) && user.permissions.includes('SCAN');
+      document.getElementById('scanView').style.display = bolehScan ? 'block' : 'none';
+      document.getElementById('scannerCard').style.display = bolehScan ? 'block' : 'none';
+      document.getElementById('dashboardNotice').style.display = role === 'Viewer' ? 'block' : 'none';
+      if (!bolehScan) tampilPesan('pesan', 'Akun Viewer hanya memiliki akses Dashboard. Fitur transaksi dinonaktifkan.', 'info');
+      toggleKategori();
+    }
+
+    function tampilLogin() {
+      document.getElementById('loginView').style.display = 'block';
+      document.getElementById('appView').style.display = 'none';
+      document.getElementById('email').value = '';
+      document.getElementById('password').value = '';
+    }
+
+    document.getElementById('btnLogout').addEventListener('click', async function () {
+      await berhentiScan();
+      sessionData = null;
+      sessionStorage.removeItem(SESSION_KEY);
+      sembunyikanPesan('pesan');
+      sembunyikanPesan('pesanLogin');
+      tampilLogin();
+    });
+
+    function toggleKategori() {
+      const keluar = document.getElementById('jenisTransaksi').value === 'KELUAR';
+      document.getElementById('kategoriContainer').style.display = keluar ? 'block' : 'none';
+    }
+    document.getElementById('jenisTransaksi').addEventListener('change', toggleKategori);
+
+    function bunyiBerhasil() {
+      try {
+        if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') audioContext.resume();
+        [0, 0.16, 0.32].forEach((delay, index) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          oscillator.type = 'square';
+          oscillator.frequency.value = index === 1 ? 1450 : 1100;
+          gain.gain.setValueAtTime(0.0001, audioContext.currentTime + delay);
+          gain.gain.exponentialRampToValueAtTime(0.25, audioContext.currentTime + delay + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + delay + 0.11);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(audioContext.currentTime + delay);
+          oscillator.stop(audioContext.currentTime + delay + 0.12);
+        });
+      } catch (err) { /* Bunyi tidak boleh menghentikan transaksi. */ }
+    }
+
+    document.getElementById('btnScan').addEventListener('click', mulaiScan);
 
     async function mulaiScan() {
-      if (kameraAktif) return;
-
-      if (typeof Html5Qrcode === "undefined") {
-        pesan("Scanner gagal dimuat. Periksa koneksi internet.", "error");
+      if (kameraAktif || memproses) return;
+      if (!sessionData || !sessionData.token) {
+        tampilPesan('pesan', 'Sesi tidak ditemukan. Silakan login kembali.', 'error');
         return;
       }
-
+      if (typeof Html5Qrcode === 'undefined') {
+        tampilPesan('pesan', 'Scanner gagal dimuat. Periksa koneksi internet.', 'error');
+        return;
+      }
+      const btn = document.getElementById('btnScan');
+      btn.disabled = true;
       try {
-        document.getElementById("btnScan").disabled = true;
-        scanner = new Html5Qrcode("reader");
-
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 240, height: 240 } },
-          hasilScan,
-          () => {}
-        );
-
+        if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        scanner = new Html5Qrcode('reader');
+        await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 240, height: 240 } }, hasilScan, function () {});
         kameraAktif = true;
-        document.getElementById("btnStop").style.display = "block";
-        pesan("Kamera aktif. Arahkan QR barang ke kotak pemindaian.");
+        tampilPesan('pesan', 'Kamera aktif. Arahkan QR barang ke kotak pemindaian.', 'info');
       } catch (err) {
         scanner = null;
-        pesan("Kamera gagal dibuka. Periksa izin kamera dan pastikan halaman HTTPS.", "error");
-      } finally {
-        document.getElementById("btnScan").disabled = false;
-      }
+        tampilPesan('pesan', 'Kamera gagal dibuka. Periksa izin kamera dan pastikan halaman menggunakan HTTPS.', 'error');
+      } finally { btn.disabled = false; }
     }
 
-    function hasilScan(qrText) {
+    async function hasilScan(qrText) {
       const sekarang = Date.now();
-
       if (memproses) return;
-      if (qrText === qrTerakhir && sekarang - waktuTerakhir < 2500) return;
-
+      if (qrText === qrTerakhir && sekarang - waktuTerakhir < 3000) return;
       qrTerakhir = qrText;
       waktuTerakhir = sekarang;
       memproses = true;
-
-      const jenis = document.getElementById("jenisTransaksi").value;
-      const kategori = jenis === "KELUAR"
-        ? document.getElementById("kategori").value
-        : "";
-
-      pesan("QR terbaca: " + qrText +
-        ". Backend transaksi belum dihubungkan.", "info");
-
-      // Langkah berikutnya: kirim QR ke backend Apps Script
-      // setelah validasi autentikasi dan hak akses tersedia.
-
-      memproses = false;
+      const btn = document.getElementById('btnScan');
+      btn.disabled = true;
+      bunyiBerhasil();
+      const jenis = document.getElementById('jenisTransaksi').value;
+      const channel = jenis === 'KELUAR' ? document.getElementById('kategori').value : '';
+      tampilPesan('pesan', 'QR terbaca. Mengirim transaksi ke server...', 'info');
+      try {
+        const result = await kirimKeBackend({
+          action: 'scan',
+          token: sessionData.token,
+          qrPayload: qrText,
+          transactionType: jenis,
+          channel: channel
+        });
+        if (!result || !result.success) {
+          if (result && result.code === 'SESSION_INVALID') {
+            sessionData = null;
+            sessionStorage.removeItem(SESSION_KEY);
+            await berhentiScan();
+            tampilLogin();
+            tampilPesan('pesanLogin', 'Sesi berakhir. Silakan login kembali.', 'error');
+            return;
+          }
+          throw new Error((result && result.message) || 'Transaksi ditolak backend.');
+        }
+        tampilPesan('pesan', result.message || 'Transaksi berhasil disimpan.', 'sukses');
+        qrTerakhir = qrText;
+        waktuTerakhir = Date.now();
+      } catch (err) {
+        tampilPesan('pesan', 'Transaksi belum dapat dikonfirmasi: ' + pesanErrorJaringan(err) + ' Periksa riwayat/stok sebelum mencoba QR yang sama lagi.', 'error');
+      } finally {
+        memproses = false;
+        btn.disabled = false;
+      }
     }
 
     async function berhentiScan() {
-      if (!scanner || !kameraAktif) return;
-
+      if (!scanner) { kameraAktif = false; return; }
       try {
-        await scanner.stop();
+        if (kameraAktif) await scanner.stop();
         await scanner.clear();
-      } catch (err) {
-        console.error(err);
-      }
-
+      } catch (err) { console.warn('Penutupan scanner:', err); }
       scanner = null;
       kameraAktif = false;
-      document.getElementById("btnStop").style.display = "none";
-      pesan("Kamera ditutup.");
     }
 
-    document.addEventListener("DOMContentLoaded", toggleKategori);
+    // Token disimpan di sessionStorage agar tidak bertahan setelah tab ditutup.
+    // Jika cache sesi backend kedaluwarsa, endpoint scan akan menolak dan meminta login ulang.
+    document.addEventListener('DOMContentLoaded', function () {
+      toggleKategori();
+      try {
+        const saved = sessionStorage.getItem(SESSION_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.token && parsed.user && Date.now() - parsed.savedAt < (parsed.expiresIn || 21600) * 1000) {
+            sessionData = parsed;
+            bukaAplikasi();
+            return;
+          }
+        }
+      } catch (err) { console.warn('Sesi lokal tidak dapat dibaca.'); }
+      sessionStorage.removeItem(SESSION_KEY);
+      tampilLogin();
+    });
   </script>
 </body>
 </html>
