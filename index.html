@@ -6,6 +6,7 @@
   <title>SISTEM GUDANG</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, sans-serif; background: #f4f5f7; color: #222; }
@@ -72,6 +73,9 @@
     .qrItem { border:1px solid #ddd; border-radius:10px; padding:12px; text-align:center; break-inside:avoid; }
     .qrCanvas { display:flex; justify-content:center; margin:8px auto; min-height:130px; }
     .qrText { font-size:12px; overflow-wrap:anywhere; }
+    .qrActions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .qrActions button { width:auto; flex:1; min-width:120px; }
+    #btnDownloadQrZip { display:none; margin-top:12px; }
     .smallBtn { padding:8px 10px; min-height:36px; font-size:13px; }
     .userActionBtn { min-width:110px; margin:0; padding:8px; min-height:36px; font-size:12px; }
     .userForm { max-width:720px; }
@@ -229,7 +233,7 @@
         </form>
         <div id="qrMessage" class="catatan" role="status" aria-live="polite" style="margin-top:10px"></div>
         <div id="qrPrintArea">
-          <div class="topline" style="margin-top:12px"><strong id="qrBatchTitle"></strong><button id="btnPrintQr" type="button" class="secondary smallBtn" style="display:none">Cetak QR</button></div>
+          <div class="topline" style="margin-top:12px"><strong id="qrBatchTitle"></strong><div class="qrActions"><button id="btnDownloadQrZip" type="button" class="secondary smallBtn">Unduh Semua JPG (ZIP)</button><button id="btnPrintQr" type="button" class="secondary smallBtn" style="display:none">Cetak QR</button></div></div>
           <div id="qrResults" class="qrGrid"></div>
         </div>
         </section>
@@ -766,6 +770,7 @@
       btn.disabled = true; btn.textContent = 'MEMBUAT QR...';
       document.getElementById('qrResults').replaceChildren();
       document.getElementById('btnPrintQr').style.display = 'none';
+      document.getElementById('btnDownloadQrZip').style.display = 'none';
       const message = document.getElementById('qrMessage');
       message.textContent = '';
       try {
@@ -785,11 +790,34 @@
           const qr = document.createElement('div'); qr.className = 'qrCanvas'; item.appendChild(qr);
           new QRCode(qr, { text:payload, width:128, height:128, correctLevel:QRCode.CorrectLevel.M });
           const serial = document.createElement('div'); serial.className = 'qrText'; serial.textContent = payload; item.appendChild(serial);
+          const actions = document.createElement('div'); actions.className = 'qrActions';
+          const downloadButton = document.createElement('button');
+          downloadButton.type = 'button'; downloadButton.className = 'secondary smallBtn';
+          downloadButton.textContent = 'Unduh JPG';
+          downloadButton.addEventListener('click', async () => {
+            const originalText = downloadButton.textContent;
+            downloadButton.disabled = true; downloadButton.textContent = 'Menyiapkan JPG...';
+            try {
+              const blob = await buatQrJpgBlob(qr);
+              unduhBlob(blob, namaFileQr(result.productCode, index + 1));
+              message.textContent = 'File JPG QR ' + (index + 1) + ' berhasil disiapkan.';
+              message.className = 'catatan sukses';
+            } catch (err) {
+              message.textContent = 'Gagal mengunduh QR JPG: ' + pesanErrorJaringan(err);
+              message.className = 'catatan error';
+            } finally {
+              downloadButton.disabled = false; downloadButton.textContent = originalText;
+            }
+          });
+          actions.appendChild(downloadButton); item.appendChild(actions);
+          item.dataset.qrIndex = String(index + 1);
+          item.dataset.qrPayload = payload;
           document.getElementById('qrResults').appendChild(item);
         });
         message.textContent = result.message || 'QR berhasil dibuat.';
         message.className = 'catatan sukses';
         document.getElementById('btnPrintQr').style.display = (result.qrPayloads || []).length ? 'block' : 'none';
+        document.getElementById('btnDownloadQrZip').style.display = (result.qrPayloads || []).length ? 'block' : 'none';
         await muatProduk();
       } catch(err) {
         message.textContent = 'Gagal membuat QR: ' + pesanErrorJaringan(err);
@@ -801,6 +829,98 @@
 
     document.getElementById('btnRefreshProducts').addEventListener('click', muatProduk);
     document.getElementById('btnPrintQr').addEventListener('click', () => window.print());
+
+    document.getElementById('btnDownloadQrZip').addEventListener('click', async () => {
+      const button = document.getElementById('btnDownloadQrZip');
+      const message = document.getElementById('qrMessage');
+      const items = Array.from(document.querySelectorAll('#qrResults .qrItem'));
+      if (!items.length) {
+        message.textContent = 'Belum ada QR yang dapat diunduh.';
+        message.className = 'catatan error';
+        return;
+      }
+      if (typeof JSZip === 'undefined') {
+        message.textContent = 'Pustaka ZIP belum berhasil dimuat. Periksa koneksi internet, lalu muat ulang halaman.';
+        message.className = 'catatan error';
+        return;
+      }
+      const oldText = button.textContent;
+      button.disabled = true; button.textContent = 'MENYIAPKAN ZIP...';
+      try {
+        const zip = new JSZip();
+        for (const item of items) {
+          const qrContainer = item.querySelector('.qrCanvas');
+          const index = Number(item.dataset.qrIndex || 0);
+          const blob = await buatQrJpgBlob(qrContainer);
+          const bytes = await blob.arrayBuffer();
+          zip.file(namaFileQr(document.getElementById('qrProduct').value, index), bytes);
+        }
+        const zipBlob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } });
+        const productCode = document.getElementById('qrProduct').value || 'QR';
+        unduhBlob(zipBlob, namaFileAman(productCode) + '_QR_JPG.zip');
+        message.textContent = 'ZIP berhasil dibuat berisi ' + items.length + ' file JPG QR.';
+        message.className = 'catatan sukses';
+      } catch (err) {
+        message.textContent = 'Gagal membuat ZIP QR: ' + pesanErrorJaringan(err);
+        message.className = 'catatan error';
+        console.error('Gagal membuat ZIP QR:', err);
+      } finally {
+        button.disabled = false; button.textContent = oldText;
+      }
+    });
+
+    function namaFileAman(value) {
+      return String(value || 'QR').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'QR';
+    }
+
+    function namaFileQr(productCode, index) {
+      return namaFileAman(productCode) + '_' + String(index).padStart(3, '0') + '.jpg';
+    }
+
+    function unduhBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = filename;
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    async function buatQrJpgBlob(qrContainer) {
+      // qrcodejs may render a canvas or an image depending on browser support.
+      let sourceCanvas = qrContainer.querySelector('canvas');
+      if (!sourceCanvas) {
+        const image = qrContainer.querySelector('img');
+        if (!image) throw new Error('Gambar QR belum siap. Coba lagi sebentar.');
+        if (typeof image.decode === 'function') {
+          await image.decode();
+        } else if (!image.complete || !image.naturalWidth) {
+          await new Promise((resolve, reject) => {
+            image.onload = resolve; image.onerror = () => reject(new Error('Gambar QR gagal dimuat.'));
+          });
+        }
+        sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = image.naturalWidth || 128;
+        sourceCanvas.height = image.naturalHeight || 128;
+        const imageContext = sourceCanvas.getContext('2d');
+        imageContext.fillStyle = '#ffffff';
+        imageContext.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height);
+        imageContext.drawImage(image, 0, 0, sourceCanvas.width, sourceCanvas.height);
+      }
+      const scale = 4;
+      const padding = 16;
+      const output = document.createElement('canvas');
+      output.width = sourceCanvas.width * scale + padding * 2;
+      output.height = sourceCanvas.height * scale + padding * 2;
+      const context = output.getContext('2d');
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, output.width, output.height);
+      context.imageSmoothingEnabled = false;
+      context.drawImage(sourceCanvas, padding, padding, sourceCanvas.width * scale, sourceCanvas.height * scale);
+      const blob = await new Promise((resolve, reject) => {
+        output.toBlob(value => value ? resolve(value) : reject(new Error('Browser tidak dapat membuat file JPG.')), 'image/jpeg', 0.95);
+      });
+      return blob;
+    }
 
     document.querySelectorAll('[data-product-panel]').forEach(button => button.addEventListener('click', () => {
       document.querySelectorAll('[data-product-panel]').forEach(item => item.classList.toggle('active', item === button));
