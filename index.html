@@ -73,8 +73,6 @@
     .qrCanvas { display:flex; justify-content:center; margin:8px auto; min-height:130px; }
     .qrText { font-size:12px; overflow-wrap:anywhere; }
     .smallBtn { padding:8px 10px; min-height:36px; font-size:13px; }
-    .userActionBtn { min-width:110px; margin:0; padding:8px; min-height:36px; font-size:12px; }
-    .userForm { max-width:720px; }
     @media print {
       body * { visibility:hidden !important; }
       #qrPrintArea, #qrPrintArea * { visibility:visible !important; }
@@ -125,15 +123,32 @@
             <span class="menuIcon">🏷️</span><span class="menuTitle">Manajemen Barang</span>
             <span class="menuDesc">Tambah produk, lihat daftar barang, dan buat QR unit</span>
           </button>
-          <button id="btnOpenUsers" type="button" class="menuChoice">
-            <span class="menuIcon">👥</span><span class="menuTitle">Manajemen User</span>
-            <span class="menuDesc">Tambah akun dan aktifkan/nonaktifkan user perusahaan</span>
-          </button>
-          <button id="btnOpenPassword" type="button" class="menuChoice">
-            <span class="menuIcon">🔐</span><span class="menuTitle">Ganti Kata Sandi</span>
-            <span class="menuDesc">Ubah kata sandi akun Anda sendiri</span>
+          <button id="btnOpenSubscriptions" type="button" class="menuChoice">
+            <span class="menuIcon">💳</span><span class="menuTitle">Langganan</span>
+            <span class="menuDesc">Lihat paket, masa aktif, dan ajukan pembayaran</span>
           </button>
         </div>
+      </section>
+
+      <section class="card" id="subscriptionsPage" style="display:none">
+        <div class="pageTitle"><h2>Langganan Sistem Gudang</h2><button id="btnBackSubscriptions" type="button">← Menu</button></div>
+        <div id="subscriptionStatusBox" class="catatan" aria-live="polite">Memuat status langganan...</div>
+        <div style="margin-top:18px">
+          <h3>Paket tersedia</h3>
+          <div id="subscriptionPlans" class="menuGrid"></div>
+        </div>
+        <section id="subscriptionPaymentFormWrap" style="margin-top:22px">
+          <h3>Ajukan Pembayaran</h3>
+          <p class="catatan">Pembayaran dilakukan manual melalui Transfer Bank atau QRIS. Tempelkan tautan bukti pembayaran yang dapat diperiksa pemilik. Langganan aktif setelah pembayaran diverifikasi.</p>
+          <form id="subscriptionPaymentForm">
+            <label for="subscriptionPlanCode">Pilih Paket</label><select id="subscriptionPlanCode" required><option value="">Memuat paket...</option></select>
+            <label for="subscriptionPaymentMethod">Metode Pembayaran</label><select id="subscriptionPaymentMethod" required><option value="TRANSFER">Transfer Bank</option><option value="QRIS">QRIS</option></select>
+            <label for="subscriptionProofURL">Tautan Bukti Pembayaran (HTTPS)</label><input id="subscriptionProofURL" type="url" inputmode="url" placeholder="https://..." required>
+            <button id="btnSubmitSubscriptionPayment" type="submit">KIRIM PENGAJUAN</button>
+          </form>
+          <div id="subscriptionPaymentMessage" class="catatan" role="status" aria-live="polite" style="display:none;margin-top:12px"></div>
+        </section>
+        <p class="catatan" style="margin-top:16px">Jika langganan kedaluwarsa, login dan Dashboard tetap tersedia, tetapi transaksi barang masuk/keluar akan ditolak sampai langganan aktif kembali.</p>
       </section>
 
       <section class="card" id="dashboardView">
@@ -220,35 +235,6 @@
           </form>
           <div id="statusMessage" class="catatan" role="status" aria-live="polite" style="margin-top:10px"></div>
         </section>
-      </section>
-
-      <section class="card" id="usersPage" style="display:none">
-        <div class="pageTitle"><h2>Manajemen User</h2><button id="btnBackUsers" type="button">← Menu</button></div>
-        <p class="catatan">Admin hanya dapat mengelola user Gudang dan Viewer di perusahaannya sendiri. Menonaktifkan user tidak menghapus riwayat transaksi.</p>
-        <h2>Tambah User</h2>
-        <form id="userForm" class="userForm">
-          <label for="newUserName">Nama lengkap</label><input id="newUserName" maxlength="120" required placeholder="Nama pengguna">
-          <label for="newUserEmail">Email login</label><input id="newUserEmail" type="email" maxlength="254" required placeholder="nama@email.com">
-          <label for="newUserRole">Role</label><select id="newUserRole" required><option value="Gudang">Gudang</option><option value="Viewer">Viewer</option></select>
-          <label for="newUserPassword">Kata sandi awal</label><input id="newUserPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="Minimal 8 karakter">
-          <label for="newUserPasswordConfirm">Ulangi kata sandi awal</label><input id="newUserPasswordConfirm" type="password" minlength="8" autocomplete="new-password" required placeholder="Ulangi kata sandi">
-          <button id="btnCreateUser" type="submit">BUAT USER</button>
-        </form>
-        <div id="usersMessage" class="catatan" role="status" aria-live="polite" style="margin:12px 0"></div>
-        <div class="topline" style="margin:18px 0 10px"><h2 style="margin:0">Daftar User Perusahaan</h2><button id="btnRefreshUsers" type="button" class="secondary smallBtn">↻ Refresh</button></div>
-        <div class="tableWrap"><table><thead><tr><th>Nama</th><th>Email</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="userRows"></tbody></table></div>
-      </section>
-
-      <section class="card" id="passwordPage" style="display:none">
-        <div class="pageTitle"><h2>Ganti Kata Sandi</h2><button id="btnBackPassword" type="button">← Menu</button></div>
-        <p class="catatan">Untuk keamanan, masukkan kata sandi saat ini. Kata sandi baru minimal 8 karakter.</p>
-        <form id="changePasswordForm" class="userForm">
-          <label for="currentPassword">Kata sandi saat ini</label><input id="currentPassword" type="password" autocomplete="current-password" required>
-          <label for="newPassword">Kata sandi baru</label><input id="newPassword" type="password" minlength="8" autocomplete="new-password" required>
-          <label for="confirmNewPassword">Ulangi kata sandi baru</label><input id="confirmNewPassword" type="password" minlength="8" autocomplete="new-password" required>
-          <button id="btnChangePassword" type="submit">GANTI KATA SANDI</button>
-        </form>
-        <div id="passwordMessage" class="catatan" role="status" aria-live="polite" style="margin-top:12px"></div>
       </section>
 
       <section id="scanPage">
@@ -357,7 +343,7 @@
       return message;
     }
 
-    let akses = { monitoring: false, transaksi: false, produk: false, users: false };
+    let akses = { monitoring: false, transaksi: false, produk: false };
 
     function bukaAplikasi() {
       if (!sessionData || !sessionData.user) return tampilLogin();
@@ -370,22 +356,18 @@
       akses = {
         monitoring: ['Admin', 'Viewer'].includes(role) && permissions.includes('DASHBOARD'),
         transaksi: ['Admin', 'Gudang'].includes(role) && permissions.includes('SCAN'),
-        produk: role === 'Admin',
-        users: role === 'Admin'
+        produk: role === 'Admin'
       };
       document.getElementById('homeMenu').style.display = 'block';
       document.getElementById('btnOpenMonitoring').style.display = akses.monitoring ? 'flex' : 'none';
       document.getElementById('btnOpenTransaksi').style.display = akses.transaksi ? 'flex' : 'none';
       document.getElementById('btnOpenProducts').style.display = akses.produk ? 'flex' : 'none';
-      document.getElementById('btnOpenUsers').style.display = akses.users ? 'flex' : 'none';
-      document.getElementById('btnOpenPassword').style.display = 'flex';
-      const visibleMenus = [akses.monitoring, akses.transaksi, akses.produk, akses.users, true].filter(Boolean).length;
+      const visibleMenus = [akses.monitoring, akses.transaksi, akses.produk, true].filter(Boolean).length;
       document.querySelector('.menuGrid').style.gridTemplateColumns = visibleMenus > 1 ? '1fr 1fr' : '1fr';
       document.getElementById('dashboardView').style.display = 'none';
       document.getElementById('scanPage').style.display = 'none';
       document.getElementById('productsPage').style.display = 'none';
-      document.getElementById('usersPage').style.display = 'none';
-      document.getElementById('passwordPage').style.display = 'none';
+      document.getElementById('subscriptionsPage').style.display = 'none';
       if (!akses.transaksi) {
         berhentiScan();
         sembunyikanPesan('pesan');
@@ -397,14 +379,12 @@
       if (halaman === 'monitoring' && !akses.monitoring) return;
       if (halaman === 'transaksi' && !akses.transaksi) return;
       if (halaman === 'produk' && !akses.produk) return;
-      if (halaman === 'users' && !akses.users) return;
       document.getElementById('homeMenu').style.display = 'none';
       document.getElementById('dashboardView').style.display = halaman === 'monitoring' ? 'block' : 'none';
       document.getElementById('scanPage').style.display = halaman === 'transaksi' ? 'block' : 'none';
       document.getElementById('productsPage').style.display = halaman === 'produk' ? 'block' : 'none';
-      document.getElementById('usersPage').style.display = halaman === 'users' ? 'block' : 'none';
-      document.getElementById('passwordPage').style.display = halaman === 'password' ? 'block' : 'none';
-      if (halaman === 'users') muatUsers();
+      document.getElementById('subscriptionsPage').style.display = halaman === 'langganan' ? 'block' : 'none';
+      if (halaman === 'langganan') muatLangganan();
       if (halaman === 'monitoring') muatDashboard();
       if (halaman === 'transaksi') toggleKategori();
       if (halaman === 'produk') muatProduk();
@@ -415,18 +395,13 @@
       document.getElementById('dashboardView').style.display = 'none';
       document.getElementById('scanPage').style.display = 'none';
       document.getElementById('productsPage').style.display = 'none';
-      document.getElementById('usersPage').style.display = 'none';
-      document.getElementById('passwordPage').style.display = 'none';
+      document.getElementById('subscriptionsPage').style.display = 'none';
       document.getElementById('homeMenu').style.display = 'block';
     }
 
     document.getElementById('btnOpenMonitoring').addEventListener('click', () => bukaHalaman('monitoring'));
     document.getElementById('btnOpenTransaksi').addEventListener('click', () => bukaHalaman('transaksi'));
     document.getElementById('btnOpenProducts').addEventListener('click', () => bukaHalaman('produk'));
-    document.getElementById('btnOpenUsers').addEventListener('click', () => bukaHalaman('users'));
-    document.getElementById('btnOpenPassword').addEventListener('click', () => bukaHalaman('password'));
-    document.getElementById('btnBackUsers').addEventListener('click', kembaliKeMenu);
-    document.getElementById('btnBackPassword').addEventListener('click', kembaliKeMenu);
     document.getElementById('btnBackMonitoring').addEventListener('click', kembaliKeMenu);
     document.getElementById('btnBackTransaksi').addEventListener('click', kembaliKeMenu);
     document.getElementById('btnBackProducts').addEventListener('click', kembaliKeMenu);
@@ -440,6 +415,94 @@
 
     const rupiah = value => new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR', maximumFractionDigits:0}).format(Number(value) || 0);
     const angka = value => new Intl.NumberFormat('id-ID').format(Number(value) || 0);
+
+    async function muatLangganan() {
+      const statusBox = document.getElementById('subscriptionStatusBox');
+      const plansBox = document.getElementById('subscriptionPlans');
+      const select = document.getElementById('subscriptionPlanCode');
+      const formWrap = document.getElementById('subscriptionPaymentFormWrap');
+      statusBox.textContent = 'Memuat status langganan...';
+      plansBox.replaceChildren();
+      select.innerHTML = '<option value="">Memuat paket...</option>';
+      try {
+        const result = await kirimKeBackend({ action: 'subscription_info', token: sessionData.token });
+        if (!result || !result.success) throw new Error(result && result.message || 'Status langganan gagal dimuat.');
+        const sub = result.subscription || {};
+        const labels = { ACTIVE: 'Aktif', EXPIRED: 'Kedaluwarsa', UNPAID: 'Menunggu pembayaran', NO_SUBSCRIPTION: 'Belum berlangganan', INACTIVE: 'Belum aktif' };
+        statusBox.textContent = 'Status: ' + (labels[sub.status] || sub.status || 'Tidak diketahui') +
+          (sub.planCode ? ' · Paket ' + sub.planCode : '') +
+          (sub.startDate ? ' · Mulai ' + sub.startDate : '') +
+          (sub.endDate ? ' · Berakhir ' + sub.endDate : '') +
+          (sub.message ? ' — ' + sub.message : '');
+        const plans = Array.isArray(result.plans) ? result.plans : [];
+        select.innerHTML = '';
+        if (!plans.length) {
+          select.innerHTML = '<option value="">Belum ada paket aktif</option>';
+          plansBox.textContent = 'Belum ada paket yang tersedia. Silakan hubungi pemilik sistem.';
+        } else {
+          select.add(new Option('Pilih paket...', ''));
+          plans.forEach(plan => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            const title = document.createElement('strong'); title.textContent = (/^(PROFESSIONAL|PRO)(-|$)/.test(String(plan.planCode || '').toUpperCase()) ? 'Pro' : plan.planName) + ' (' + plan.planCode + ')';
+            const durasiLabel = Number(plan.durationMonths) === 12 ? '1 tahun' : plan.durationMonths + ' bulan';
+            const price = document.createElement('p'); price.textContent = rupiah(plan.price) + ' · ' + durasiLabel;
+            const limits = document.createElement('p'); limits.className = 'catatan';
+            const roleLimits = plan.roleLimits || {};
+            const code = String(plan.planCode || '').toUpperCase();
+            let roleText;
+            if (/^(PROFESSIONAL|PRO|ENTERPRISE)(-|$)/.test(code)) {
+              roleText = 'Admin: 2 · Gudang: 10+ · Viewer: 5+';
+            } else {
+              roleText = ['Admin', 'Gudang', 'Viewer'].map(role => role + ': ' + (roleLimits[role] === null || roleLimits[role] === undefined ? 'Tanpa batas' : angka(roleLimits[role]))).join(' · ');
+            }
+            let productLimitText;
+            if (/^(PROFESSIONAL|PRO|ENTERPRISE)(-|$)/.test(code)) {
+              productLimitText = '100+ produk';
+            } else if (/^BASIC(-|$)/.test(code)) {
+              productLimitText = (plan.maxProducts === null ? '25' : angka(plan.maxProducts)) + ' produk';
+            } else if (/^ADVANCED(-|$)/.test(code)) {
+              productLimitText = (plan.maxProducts === null ? '75' : angka(plan.maxProducts)) + ' produk';
+            } else {
+              productLimitText = plan.maxProducts === null ? 'Tanpa batas' : angka(plan.maxProducts) + ' produk';
+            }
+            limits.textContent = roleText + ' · Total user: ' + (plan.maxUsers === null ? 'sesuai kuota role' : angka(plan.maxUsers)) + ' · Produk: ' + productLimitText;
+            const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'secondary'; choose.textContent = 'Pilih paket';
+            choose.addEventListener('click', () => { select.value = plan.planCode; select.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+            card.append(title, price, limits, choose); plansBox.appendChild(card);
+            select.add(new Option((/^(PROFESSIONAL|PRO)(-|$)/.test(String(plan.planCode || '').toUpperCase()) ? 'Pro' : plan.planName) + ' — ' + rupiah(plan.price) + ' / ' + (Number(plan.durationMonths) === 12 ? '1 tahun' : plan.durationMonths + ' bulan'), plan.planCode));
+          });
+        }
+        const isAdmin = sessionData.user && sessionData.user.role === 'Admin';
+        formWrap.style.display = isAdmin && plans.length ? 'block' : 'none';
+        if (!isAdmin) statusBox.textContent += ' Pengajuan pembayaran hanya dapat dilakukan oleh Admin perusahaan.';
+      } catch (err) {
+        statusBox.textContent = pesanErrorJaringan(err);
+        formWrap.style.display = sessionData.user && sessionData.user.role === 'Admin' ? 'block' : 'none';
+      }
+    }
+
+    document.getElementById('subscriptionPaymentForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      const button = document.getElementById('btnSubmitSubscriptionPayment');
+      const message = document.getElementById('subscriptionPaymentMessage');
+      button.disabled = true; button.textContent = 'MENGIRIM...';
+      message.style.display = 'none';
+      try {
+        const result = await kirimKeBackend({
+          action: 'subscription_payment_submit', token: sessionData.token,
+          planCode: document.getElementById('subscriptionPlanCode').value,
+          paymentMethod: document.getElementById('subscriptionPaymentMethod').value,
+          proofURL: document.getElementById('subscriptionProofURL').value.trim()
+        });
+        if (!result || !result.success) throw new Error(result && result.message || 'Pengajuan pembayaran gagal.');
+        tampilPesan('subscriptionPaymentMessage', result.message + (result.paymentId ? ' ID: ' + result.paymentId : ''), 'success');
+        document.getElementById('subscriptionProofURL').value = '';
+        await muatLangganan();
+      } catch (err) {
+        tampilPesan('subscriptionPaymentMessage', pesanErrorJaringan(err), 'error');
+      } finally { button.disabled = false; button.textContent = 'KIRIM PENGAJUAN'; }
+    });
 
     document.getElementById('btnRefreshDashboard').addEventListener('click', muatDashboard);
     document.getElementById('filterMonth').addEventListener('change', muatDashboard);
@@ -686,56 +749,6 @@
         await muatProduk();
       } catch(err) { message.textContent = 'Gagal mengubah status: ' + pesanErrorJaringan(err); message.className = 'catatan error'; }
       finally { btn.disabled = false; btn.textContent = 'SIMPAN STATUS'; }
-    });
-
-    async function muatUsers() {
-      if (!sessionData || !sessionData.token || !akses.users) return;
-      const message = document.getElementById('usersMessage'); message.textContent = 'Memuat daftar user...'; message.className = 'catatan';
-      try {
-        const result = await kirimKeBackend({ action:'user_list', token:sessionData.token });
-        if (!result || !result.success) { if (result && result.code === 'SESSION_INVALID') { sessionData=null; sessionStorage.removeItem(SESSION_KEY); tampilLogin(); } throw new Error((result && result.message) || 'Daftar user gagal dimuat.'); }
-        const tbody = document.getElementById('userRows'); tbody.replaceChildren();
-        (result.users || []).forEach(user => {
-          const tr = document.createElement('tr');
-          [user.fullName || '-', user.email || '-', user.role || '-'].forEach(value => { const td=document.createElement('td'); td.textContent=value; tr.appendChild(td); });
-          const statusTd=document.createElement('td'); const pill=document.createElement('span'); pill.className='statusPill '+(user.status==='ACTIVE'?'statusActive':'statusInactive'); pill.textContent=user.status==='ACTIVE'?'AKTIF':'NONAKTIF'; statusTd.appendChild(pill); tr.appendChild(statusTd);
-          const actionTd=document.createElement('td');
-          if (user.role === 'Admin' || user.userId === sessionData.user.userId) { actionTd.textContent='—'; } else {
-            const btn=document.createElement('button'); btn.type='button'; btn.className='userActionBtn '+(user.status==='ACTIVE'?'secondary':''); btn.textContent=user.status==='ACTIVE'?'NONAKTIFKAN':'AKTIFKAN';
-            btn.addEventListener('click', async () => {
-              const nextStatus=user.status==='ACTIVE'?'INACTIVE':'ACTIVE';
-              if (!confirm((nextStatus==='INACTIVE'?'Nonaktifkan':'Aktifkan kembali')+' akun '+user.fullName+'?')) return;
-              btn.disabled=true;
-              try { const update=await kirimKeBackend({action:'user_status_update',token:sessionData.token,userId:user.userId,status:nextStatus}); if (!update || !update.success) throw new Error((update && update.message)||'Status user gagal diperbarui.'); message.textContent=update.message; message.className='catatan sukses'; await muatUsers(); }
-              catch(err) { message.textContent='Gagal mengubah status: '+pesanErrorJaringan(err); message.className='catatan error'; btn.disabled=false; }
-            }); actionTd.appendChild(btn);
-          }
-          tr.appendChild(actionTd); tbody.appendChild(tr);
-        });
-        if (!(result.users||[]).length) { const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.textContent='Belum ada user.'; tr.appendChild(td); tbody.appendChild(tr); }
-        if (!message.className.includes('sukses')) message.textContent='Daftar user berhasil dimuat.';
-      } catch(err) { message.textContent='Gagal memuat user: '+pesanErrorJaringan(err); message.className='catatan error'; }
-    }
-    document.getElementById('btnRefreshUsers').addEventListener('click', muatUsers);
-    document.getElementById('userForm').addEventListener('submit', async event => {
-      event.preventDefault(); const message=document.getElementById('usersMessage'); const btn=document.getElementById('btnCreateUser');
-      const password=document.getElementById('newUserPassword').value;
-      if (password !== document.getElementById('newUserPasswordConfirm').value) { message.textContent='Konfirmasi kata sandi tidak sama.'; message.className='catatan error'; return; }
-      btn.disabled=true; btn.textContent='MENYIMPAN...';
-      try { const result=await kirimKeBackend({action:'user_create',token:sessionData.token,fullName:document.getElementById('newUserName').value.trim(),email:document.getElementById('newUserEmail').value.trim(),role:document.getElementById('newUserRole').value,password:password}); if (!result || !result.success) throw new Error((result&&result.message)||'User gagal dibuat.');
-        message.textContent=result.message; message.className='catatan sukses'; document.getElementById('userForm').reset(); await muatUsers();
-      } catch(err) { message.textContent='Gagal membuat user: '+pesanErrorJaringan(err); message.className='catatan error'; }
-      finally { btn.disabled=false; btn.textContent='BUAT USER'; }
-    });
-    document.getElementById('changePasswordForm').addEventListener('submit', async event => {
-      event.preventDefault(); const message=document.getElementById('passwordMessage'); const btn=document.getElementById('btnChangePassword');
-      const newPassword=document.getElementById('newPassword').value;
-      if (newPassword !== document.getElementById('confirmNewPassword').value) { message.textContent='Konfirmasi kata sandi baru tidak sama.'; message.className='catatan error'; return; }
-      btn.disabled=true; btn.textContent='MEMPROSES...';
-      try { const result=await kirimKeBackend({action:'change_password',token:sessionData.token,currentPassword:document.getElementById('currentPassword').value,newPassword:newPassword}); if (!result || !result.success) { if (result&&result.code==='SESSION_INVALID') {sessionData=null;sessionStorage.removeItem(SESSION_KEY);tampilLogin();} throw new Error((result&&result.message)||'Kata sandi gagal diganti.'); }
-        message.textContent=result.message; message.className='catatan sukses'; document.getElementById('changePasswordForm').reset();
-      } catch(err) { message.textContent='Gagal mengganti kata sandi: '+pesanErrorJaringan(err); message.className='catatan error'; }
-      finally { btn.disabled=false; btn.textContent='GANTI KATA SANDI'; }
     });
 
     document.getElementById('btnLogout').addEventListener('click', async function () {
