@@ -113,6 +113,10 @@
       <section class="card">
         <div class="topline"><h2 style="margin:0">Akses Pengguna</h2><button id="btnLogout" type="button">Keluar</button></div>
         <p id="identitas"></p>
+        <section class="card" id="dashboardSubscriptionCard" style="margin:12px 0;padding:14px;background:#f8fafc;border:1px solid #dbe3ec">
+          <div class="topline"><strong>📅 Status Langganan Saat Ini</strong><button id="btnDashboardSubscriptionRefresh" type="button" class="secondary smallBtn">↻ Perbarui</button></div>
+          <div id="dashboardSubscriptionStatus" class="catatan" aria-live="polite">Memuat status langganan...</div>
+        </section>
       </section>
 
       <section class="card" id="homeMenu">
@@ -170,10 +174,6 @@
       <section class="card" id="dashboardView">
         <div class="pageTitle"><h2>Monitoring Gudang</h2><button id="btnBackMonitoring" type="button">← Menu</button></div>
         <p id="dashboardCompany" class="catatan"></p>
-        <section class="card" id="dashboardSubscriptionCard" style="margin:12px 0;padding:14px;background:#f8fafc;border:1px solid #dbe3ec">
-          <div class="topline"><strong>📅 Status Langganan Saat Ini</strong><button id="btnDashboardSubscriptionRefresh" type="button" class="secondary smallBtn">↻ Perbarui</button></div>
-          <div id="dashboardSubscriptionStatus" class="catatan" aria-live="polite">Memuat status langganan...</div>
-        </section>
         <div class="topline" style="margin:14px 0 8px"><strong>Ringkasan Gudang</strong><button id="btnRefreshDashboard" type="button" class="secondary">↻ Refresh</button></div>
         <div class="filters">
           <div><label for="filterMonth">Bulan transaksi</label><input id="filterMonth" type="month"></div>
@@ -432,6 +432,7 @@
         sembunyikanPesan('pesan');
       }
       toggleKategori();
+      muatStatusLanggananDashboard();
     }
 
     function bukaHalaman(halaman) {
@@ -645,7 +646,6 @@
 
     async function muatDashboard() {
       if (!sessionData || !sessionData.token) return;
-      muatStatusLanggananDashboard();
       const message = document.getElementById('dashboardMessage');
       message.textContent = 'Memuat data Monitoring Gudang...';
       try {
