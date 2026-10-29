@@ -6,7 +6,6 @@
   <title>SISTEM GUDANG</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, sans-serif; background: #f4f5f7; color: #222; }
@@ -52,6 +51,12 @@
     .productTableWrap thead th { position:sticky; top:0; z-index:2; }
     .productTableWrap table { min-width:980px; }
     .productTableWrap tbody tr { height:42px; }
+    .monitorTableWrap { height:370px; max-height:370px; overflow:auto; border:1px solid #e6e6e6; border-radius:10px; -webkit-overflow-scrolling:touch; }
+    .monitorTableWrap table { min-width:720px; }
+    .monitorTableWrap thead th { position:sticky; top:0; z-index:2; box-shadow:0 1px 0 #e6e6e6; }
+    .monitorTableWrap tbody tr { height:42px; }
+    #monitorProductRows tr { height:42px; }
+    .monitorSectionTitle { margin-top:22px; }
     .productSubnav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:16px 0; }
     .productSubnav button { margin:0; min-height:48px; padding:10px 8px; font-size:14px; }
     .productSubnav button.active { background:#8f1117; outline:2px solid #f3b6b8; }
@@ -73,9 +78,6 @@
     .qrItem { border:1px solid #ddd; border-radius:10px; padding:12px; text-align:center; break-inside:avoid; }
     .qrCanvas { display:flex; justify-content:center; margin:8px auto; min-height:130px; }
     .qrText { font-size:12px; overflow-wrap:anywhere; }
-    .qrActions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-    .qrActions button { width:auto; flex:1; min-width:120px; }
-    #btnDownloadQrZip { display:none; margin-top:12px; }
     .smallBtn { padding:8px 10px; min-height:36px; font-size:13px; }
     .userActionBtn { min-width:110px; margin:0; padding:8px; min-height:36px; font-size:12px; }
     .userForm { max-width:720px; }
@@ -168,6 +170,10 @@
       <section class="card" id="dashboardView">
         <div class="pageTitle"><h2>Monitoring Gudang</h2><button id="btnBackMonitoring" type="button">← Menu</button></div>
         <p id="dashboardCompany" class="catatan"></p>
+        <section class="card" id="dashboardSubscriptionCard" style="margin:12px 0;padding:14px;background:#f8fafc;border:1px solid #dbe3ec">
+          <div class="topline"><strong>📅 Status Langganan Saat Ini</strong><button id="btnDashboardSubscriptionRefresh" type="button" class="secondary smallBtn">↻ Perbarui</button></div>
+          <div id="dashboardSubscriptionStatus" class="catatan" aria-live="polite">Memuat status langganan...</div>
+        </section>
         <div class="topline" style="margin:14px 0 8px"><strong>Ringkasan Gudang</strong><button id="btnRefreshDashboard" type="button" class="secondary">↻ Refresh</button></div>
         <div class="filters">
           <div><label for="filterMonth">Bulan transaksi</label><input id="filterMonth" type="month"></div>
@@ -182,13 +188,18 @@
           <div class="stat"><div class="label">Total Penjualan (periode)</div><div class="value" id="totalPenjualan">-</div></div>
           <div class="stat"><div class="label">Laba Kotor (periode)</div><div class="value" id="labaKotor">-</div></div>
         </div>
-        <h2 style="margin-top:22px">Monitoring Stok per Produk</h2>
-        <p class="catatan">Stok tersedia dihitung dari unit dengan status IN_STOCK. Nilai stok menggunakan HPP produk.</p>
+        <h2 class="monitorSectionTitle">Data Barang</h2>
+        <p class="catatan">Seluruh produk perusahaan beserta HPP dan harga jual per pcs. Daftar menampilkan 8 baris sekaligus; gulir untuk melihat produk lainnya.</p>
+        <div id="monitorProductMessage" class="catatan">Memuat data barang...</div>
+        <div class="monitorTableWrap"><table><thead><tr><th>Kode Barang</th><th>Nama Barang</th><th>HPP/Pcs</th><th>Harga Jual/Pcs</th><th>Status</th></tr></thead><tbody id="monitorProductRows"></tbody></table></div>
+        <h2 class="monitorSectionTitle">Monitoring Stok per Produk</h2>
+        <p class="catatan">Stok tersedia dihitung dari unit dengan status IN_STOCK. Nilai stok menggunakan HPP produk. Gulir untuk melihat baris lainnya.</p>
         <div id="stockMessage" class="catatan">Memuat stok produk...</div>
-        <div class="tableWrap"><table><thead><tr><th>Kode</th><th>Nama Produk</th><th>Stok Tersedia</th><th>Nilai Stok (HPP)</th><th>Kondisi</th></tr></thead><tbody id="stockRows"></tbody></table></div>
-        <h2 style="margin-top:22px">Riwayat Transaksi Terbaru</h2>
+        <div class="monitorTableWrap"><table><thead><tr><th>Kode</th><th>Nama Produk</th><th>Stok Tersedia</th><th>Nilai Stok (HPP)</th><th>Kondisi</th></tr></thead><tbody id="stockRows"></tbody></table></div>
+        <h2 class="monitorSectionTitle">Riwayat Transaksi Terbaru</h2>
+        <p class="catatan">Menampilkan 8 baris sekaligus. Gulir untuk melihat transaksi lainnya yang tersedia.</p>
         <div id="dashboardMessage" class="catatan">Memuat data...</div>
-        <div class="tableWrap"><table><thead><tr><th>Waktu</th><th>Barang</th><th>Jenis</th><th>Channel</th><th>Penjualan</th><th>Laba</th></tr></thead><tbody id="recentRows"></tbody></table></div>
+        <div class="monitorTableWrap"><table><thead><tr><th>Waktu</th><th>Barang</th><th>Jenis</th><th>Channel</th><th>Penjualan</th><th>Laba</th></tr></thead><tbody id="recentRows"></tbody></table></div>
       </section>
 
       <section class="card" id="productsPage" style="display:none">
@@ -233,7 +244,7 @@
         </form>
         <div id="qrMessage" class="catatan" role="status" aria-live="polite" style="margin-top:10px"></div>
         <div id="qrPrintArea">
-          <div class="topline" style="margin-top:12px"><strong id="qrBatchTitle"></strong><div class="qrActions"><button id="btnDownloadQrZip" type="button" class="secondary smallBtn">Unduh Semua JPG (ZIP)</button><button id="btnPrintQr" type="button" class="secondary smallBtn" style="display:none">Cetak QR</button></div></div>
+          <div class="topline" style="margin-top:12px"><strong id="qrBatchTitle"></strong><button id="btnPrintQr" type="button" class="secondary smallBtn" style="display:none">Cetak QR</button></div>
           <div id="qrResults" class="qrGrid"></div>
         </div>
         </section>
@@ -592,11 +603,49 @@
     });
 
     document.getElementById('btnRefreshDashboard').addEventListener('click', muatDashboard);
+    document.getElementById('btnDashboardSubscriptionRefresh').addEventListener('click', muatStatusLanggananDashboard);
     document.getElementById('filterMonth').addEventListener('change', muatDashboard);
     document.getElementById('filterProduct').addEventListener('change', muatDashboard);
 
+    async function muatStatusLanggananDashboard() {
+      const box = document.getElementById('dashboardSubscriptionStatus');
+      if (!sessionData || !sessionData.token) return;
+      box.textContent = 'Memuat status langganan...';
+      box.className = 'catatan';
+      try {
+        const result = await kirimKeBackend({ action: 'subscription_info', token: sessionData.token });
+        if (!result || !result.success) {
+          if (result && result.code === 'SESSION_INVALID') {
+            sessionData = null; sessionStorage.removeItem(SESSION_KEY); tampilLogin();
+          }
+          throw new Error(result && result.message || 'Status langganan tidak dapat dimuat.');
+        }
+        const sub = result.subscription || {};
+        const plans = Array.isArray(result.plans) ? result.plans : [];
+        const plan = plans.find(item => String(item.planCode || '').toUpperCase() === String(sub.planCode || '').toUpperCase());
+        const statusLabels = {
+          ACTIVE: 'AKTIF', EXPIRED: 'KEDALUWARSA', UNPAID: 'MENUNGGU PEMBAYARAN',
+          NO_SUBSCRIPTION: 'BELUM BERLANGGANAN', INACTIVE: 'BELUM AKTIF', SUSPENDED: 'DITANGGUHKAN'
+        };
+        const status = String(sub.status || 'NO_SUBSCRIPTION').toUpperCase();
+        const badge = status === 'ACTIVE' ? '🟢' : status === 'EXPIRED' || status === 'SUSPENDED' ? '🔴' : '🟠';
+        const planLabel = plan ? (plan.planName + ' (' + plan.planCode + ')') : (sub.planCode || 'Belum ada paket');
+        const dates = [];
+        if (sub.startDate) dates.push('Mulai: ' + sub.startDate);
+        if (sub.endDate) dates.push('Berakhir: ' + sub.endDate);
+        box.textContent = badge + ' ' + (statusLabels[status] || status) + '  |  Paket: ' + planLabel +
+          (dates.length ? '  |  ' + dates.join('  |  ') : '') +
+          (sub.message ? '  |  ' + sub.message : '');
+        box.className = status === 'ACTIVE' ? 'success' : (status === 'EXPIRED' || status === 'SUSPENDED' ? 'error' : 'catatan');
+      } catch (err) {
+        box.textContent = 'Status langganan gagal dimuat: ' + pesanErrorJaringan(err);
+        box.className = 'error';
+      }
+    }
+
     async function muatDashboard() {
       if (!sessionData || !sessionData.token) return;
+      muatStatusLanggananDashboard();
       const message = document.getElementById('dashboardMessage');
       message.textContent = 'Memuat data Monitoring Gudang...';
       try {
@@ -612,6 +661,23 @@
           throw new Error((result && result.message) || 'Data Monitoring Gudang tidak dapat dimuat.');
         }
         document.getElementById('dashboardCompany').textContent = result.companyName || '';
+        const catalogRows = document.getElementById('monitorProductRows');
+        catalogRows.replaceChildren();
+        const catalog = result.productCatalog || result.products || [];
+        catalog.forEach(product => {
+          const tr = document.createElement('tr');
+          const values = [product.productCode || '-', product.productName || '-', rupiah(product.hpp), rupiah(product.sellingPrice)];
+          values.forEach(value => { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); });
+          const statusTd = document.createElement('td');
+          const status = String(product.status || 'ACTIVE').toUpperCase();
+          const badge = document.createElement('span');
+          badge.className = 'statusPill ' + (status === 'ACTIVE' ? 'statusActive' : 'statusInactive');
+          badge.textContent = status === 'ACTIVE' ? 'AKTIF' : 'NONAKTIF';
+          statusTd.appendChild(badge); tr.appendChild(statusTd); catalogRows.appendChild(tr);
+        });
+        document.getElementById('monitorProductMessage').textContent = catalog.length
+          ? 'Total ' + angka(catalog.length) + ' produk terdaftar.'
+          : 'Belum ada produk terdaftar.';
         const productSelect = document.getElementById('filterProduct');
         const oldValue = productSelect.value || 'ALL';
         const known = new Set(Array.from(productSelect.options).map(o => o.value));
@@ -770,7 +836,6 @@
       btn.disabled = true; btn.textContent = 'MEMBUAT QR...';
       document.getElementById('qrResults').replaceChildren();
       document.getElementById('btnPrintQr').style.display = 'none';
-      document.getElementById('btnDownloadQrZip').style.display = 'none';
       const message = document.getElementById('qrMessage');
       message.textContent = '';
       try {
@@ -790,34 +855,11 @@
           const qr = document.createElement('div'); qr.className = 'qrCanvas'; item.appendChild(qr);
           new QRCode(qr, { text:payload, width:128, height:128, correctLevel:QRCode.CorrectLevel.M });
           const serial = document.createElement('div'); serial.className = 'qrText'; serial.textContent = payload; item.appendChild(serial);
-          const actions = document.createElement('div'); actions.className = 'qrActions';
-          const downloadButton = document.createElement('button');
-          downloadButton.type = 'button'; downloadButton.className = 'secondary smallBtn';
-          downloadButton.textContent = 'Unduh JPG';
-          downloadButton.addEventListener('click', async () => {
-            const originalText = downloadButton.textContent;
-            downloadButton.disabled = true; downloadButton.textContent = 'Menyiapkan JPG...';
-            try {
-              const blob = await buatQrJpgBlob(qr);
-              unduhBlob(blob, namaFileQr(result.productCode, index + 1));
-              message.textContent = 'File JPG QR ' + (index + 1) + ' berhasil disiapkan.';
-              message.className = 'catatan sukses';
-            } catch (err) {
-              message.textContent = 'Gagal mengunduh QR JPG: ' + pesanErrorJaringan(err);
-              message.className = 'catatan error';
-            } finally {
-              downloadButton.disabled = false; downloadButton.textContent = originalText;
-            }
-          });
-          actions.appendChild(downloadButton); item.appendChild(actions);
-          item.dataset.qrIndex = String(index + 1);
-          item.dataset.qrPayload = payload;
           document.getElementById('qrResults').appendChild(item);
         });
         message.textContent = result.message || 'QR berhasil dibuat.';
         message.className = 'catatan sukses';
         document.getElementById('btnPrintQr').style.display = (result.qrPayloads || []).length ? 'block' : 'none';
-        document.getElementById('btnDownloadQrZip').style.display = (result.qrPayloads || []).length ? 'block' : 'none';
         await muatProduk();
       } catch(err) {
         message.textContent = 'Gagal membuat QR: ' + pesanErrorJaringan(err);
@@ -829,98 +871,6 @@
 
     document.getElementById('btnRefreshProducts').addEventListener('click', muatProduk);
     document.getElementById('btnPrintQr').addEventListener('click', () => window.print());
-
-    document.getElementById('btnDownloadQrZip').addEventListener('click', async () => {
-      const button = document.getElementById('btnDownloadQrZip');
-      const message = document.getElementById('qrMessage');
-      const items = Array.from(document.querySelectorAll('#qrResults .qrItem'));
-      if (!items.length) {
-        message.textContent = 'Belum ada QR yang dapat diunduh.';
-        message.className = 'catatan error';
-        return;
-      }
-      if (typeof JSZip === 'undefined') {
-        message.textContent = 'Pustaka ZIP belum berhasil dimuat. Periksa koneksi internet, lalu muat ulang halaman.';
-        message.className = 'catatan error';
-        return;
-      }
-      const oldText = button.textContent;
-      button.disabled = true; button.textContent = 'MENYIAPKAN ZIP...';
-      try {
-        const zip = new JSZip();
-        for (const item of items) {
-          const qrContainer = item.querySelector('.qrCanvas');
-          const index = Number(item.dataset.qrIndex || 0);
-          const blob = await buatQrJpgBlob(qrContainer);
-          const bytes = await blob.arrayBuffer();
-          zip.file(namaFileQr(document.getElementById('qrProduct').value, index), bytes);
-        }
-        const zipBlob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } });
-        const productCode = document.getElementById('qrProduct').value || 'QR';
-        unduhBlob(zipBlob, namaFileAman(productCode) + '_QR_JPG.zip');
-        message.textContent = 'ZIP berhasil dibuat berisi ' + items.length + ' file JPG QR.';
-        message.className = 'catatan sukses';
-      } catch (err) {
-        message.textContent = 'Gagal membuat ZIP QR: ' + pesanErrorJaringan(err);
-        message.className = 'catatan error';
-        console.error('Gagal membuat ZIP QR:', err);
-      } finally {
-        button.disabled = false; button.textContent = oldText;
-      }
-    });
-
-    function namaFileAman(value) {
-      return String(value || 'QR').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'QR';
-    }
-
-    function namaFileQr(productCode, index) {
-      return namaFileAman(productCode) + '_' + String(index).padStart(3, '0') + '.jpg';
-    }
-
-    function unduhBlob(blob, filename) {
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url; anchor.download = filename;
-      document.body.appendChild(anchor); anchor.click(); anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-    }
-
-    async function buatQrJpgBlob(qrContainer) {
-      // qrcodejs may render a canvas or an image depending on browser support.
-      let sourceCanvas = qrContainer.querySelector('canvas');
-      if (!sourceCanvas) {
-        const image = qrContainer.querySelector('img');
-        if (!image) throw new Error('Gambar QR belum siap. Coba lagi sebentar.');
-        if (typeof image.decode === 'function') {
-          await image.decode();
-        } else if (!image.complete || !image.naturalWidth) {
-          await new Promise((resolve, reject) => {
-            image.onload = resolve; image.onerror = () => reject(new Error('Gambar QR gagal dimuat.'));
-          });
-        }
-        sourceCanvas = document.createElement('canvas');
-        sourceCanvas.width = image.naturalWidth || 128;
-        sourceCanvas.height = image.naturalHeight || 128;
-        const imageContext = sourceCanvas.getContext('2d');
-        imageContext.fillStyle = '#ffffff';
-        imageContext.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height);
-        imageContext.drawImage(image, 0, 0, sourceCanvas.width, sourceCanvas.height);
-      }
-      const scale = 4;
-      const padding = 16;
-      const output = document.createElement('canvas');
-      output.width = sourceCanvas.width * scale + padding * 2;
-      output.height = sourceCanvas.height * scale + padding * 2;
-      const context = output.getContext('2d');
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, output.width, output.height);
-      context.imageSmoothingEnabled = false;
-      context.drawImage(sourceCanvas, padding, padding, sourceCanvas.width * scale, sourceCanvas.height * scale);
-      const blob = await new Promise((resolve, reject) => {
-        output.toBlob(value => value ? resolve(value) : reject(new Error('Browser tidak dapat membuat file JPG.')), 'image/jpeg', 0.95);
-      });
-      return blob;
-    }
 
     document.querySelectorAll('[data-product-panel]').forEach(button => button.addEventListener('click', () => {
       document.querySelectorAll('[data-product-panel]').forEach(item => item.classList.toggle('active', item === button));
